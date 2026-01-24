@@ -9,3 +9,4 @@
 Идеально подходит для тех, кто стремится к качественному и быстрому результату в мире разработки ПО.
 
 https://www.figma.com/proto/F8EBVZyNUrROyB7YuvqN5E/Untitled?node-id=1-3&starting-point-node-id=1%3A2&t=E8YgwFF2ToiYw21c-1
+https://drive.google.com/drive/folders/1n0kJ2tAYknswkE6DNTiq2F2smIBnkfXh
