@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'register_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'notification_service.dart';
+import 'glav.dart';
+import 'login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,11 +14,36 @@ void main() async {
 class DevineApp extends StatelessWidget {
   const DevineApp({super.key});
 
+  Future<bool> _isLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('isLoggedIn') ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const StartScreen(),
+      home: FutureBuilder<bool>(
+        future: _isLoggedIn(),
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Scaffold(
+              backgroundColor: Colors.black,
+              body: Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+            );
+          }
+
+          final logged = snap.data ?? false;
+
+          // ✅ если уже входил — сразу в главную
+          if (logged) return const GlavPage();
+
+          // ✅ иначе стартовый экран
+          return const StartScreen();
+        },
+      ),
     );
   }
 }
@@ -59,20 +87,24 @@ class StartScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
+
               Center(
                 child: ElevatedButton(
                   onPressed: () {
+                    // ✅ ведём на вход (там есть кнопка регистрации)
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const RegisterPage(),
+                        builder: (context) => const LoginPage(),
                       ),
                     );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF9B8EFF),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 32, vertical: 16),
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -82,6 +114,29 @@ class StartScreen extends StatelessWidget {
                     style: TextStyle(fontSize: 16, color: Colors.white),
                   ),
                 ),
+              ),
+
+              const SizedBox(height: 40),
+
+              // ✅ вернул нижний текст-список (как у тебя было)
+              const Text(
+                'Автоматизируйте рутинные задачи',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Ускорьте разработку',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Повышайте продуктивность',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Упрощает создание и внедрение программ',
+                style: TextStyle(color: Colors.white, fontSize: 16),
               ),
             ],
           ),

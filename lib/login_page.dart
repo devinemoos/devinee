@@ -1,22 +1,24 @@
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'glav.dart';
 
-class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+import 'glav.dart';
+import 'register_page.dart';
+
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
 
   @override
-  State<RegisterPage> createState() => _RegisterPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _RegisterPageState extends State<RegisterPage> {
+class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
+
   bool _loading = false;
   bool _hidePass = true;
 
@@ -31,28 +33,12 @@ class _RegisterPageState extends State<RegisterPage> {
     return RegExp(r'^[\w\.\-]+@([\w\-]+\.)+[a-zA-Z]{2,}$').hasMatch(v.trim());
   }
 
-  bool _isValidPassword(String v) {
-    final s = v.trim();
-    final hasLetter = RegExp(r'[A-Za-z]').hasMatch(s);
-    final hasDigit = RegExp(r'\d').hasMatch(s);
-    return s.length >= 8 && hasLetter && hasDigit;
-  }
-
-  /// Генерация соли (случайная строка)
-  String _generateSalt({int length = 16}) {
-    const chars =
-        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final rnd = Random.secure();
-    return List.generate(length, (_) => chars[rnd.nextInt(chars.length)]).join();
-  }
-
-  /// SHA-256(password + salt)
   String _hashPassword(String password, String salt) {
     final bytes = utf8.encode('${password.trim()}$salt');
     return sha256.convert(bytes).toString();
   }
 
-  Future<void> _register() async {
+  Future<void> _login() async {
     final ok = _formKey.currentState?.validate() ?? false;
     if (!ok) return;
 
@@ -60,23 +46,38 @@ class _RegisterPageState extends State<RegisterPage> {
 
     final prefs = await SharedPreferences.getInstance();
 
-    // ✅ сохраняем вход + email
-    await prefs.setBool('isLoggedIn', true);
-    await prefs.setString('email', _emailCtrl.text.trim());
+    final savedEmail = prefs.getString('email');
+    final savedSalt = prefs.getString('passwordSalt');
+    final savedHash = prefs.getString('passwordHash');
 
-    // ✅ сохраняем пароль (ХЭШ + СОЛЬ)
-    final salt = _generateSalt();
-    final passHash = _hashPassword(_passCtrl.text, salt);
-    await prefs.setString('passwordSalt', salt);
-    await prefs.setString('passwordHash', passHash);
-
-    // ✅ по умолчанию подписка выключена (Free)
-    if (!prefs.containsKey('isPlus')) {
-      await prefs.setBool('isPlus', false);
+    if (savedEmail == null || savedSalt == null || savedHash == null) {
+      setState(() => _loading = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Аккаунт не найден. Сначала зарегистрируйтесь.')),
+      );
+      return;
     }
 
-    if (!mounted) return;
+    final inputEmail = _emailCtrl.text.trim();
+    final inputHash = _hashPassword(_passCtrl.text, savedSalt);
 
+    final emailOk = inputEmail.toLowerCase() == savedEmail.toLowerCase();
+    final passOk = inputHash == savedHash;
+
+    if (!emailOk || !passOk) {
+      setState(() => _loading = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Неверный email или пароль')),
+      );
+      return;
+    }
+
+    // ✅ логин успешен
+    await prefs.setBool('isLoggedIn', true);
+
+    if (!mounted) return;
     setState(() => _loading = false);
 
     Navigator.pushAndRemoveUntil(
@@ -107,8 +108,7 @@ class _RegisterPageState extends State<RegisterPage> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('Регистрация', style: TextStyle(color: Colors.white)),
+        title: const Text('Вход', style: TextStyle(color: Colors.white)),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -145,15 +145,13 @@ class _RegisterPageState extends State<RegisterPage> {
                 validator: (v) {
                   final s = (v ?? '').trim();
                   if (s.isEmpty) return 'Введите пароль';
-                  if (!_isValidPassword(s)) {
-                    return 'Пароль: минимум 8 символов, буква и цифра';
-                  }
                   return null;
                 },
               ),
               const SizedBox(height: 24),
+
               ElevatedButton(
-                onPressed: _loading ? null : _register,
+                onPressed: _loading ? null : _login,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF9B8EFF),
                   minimumSize: const Size(double.infinity, 52),
@@ -171,15 +169,24 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                       )
                     : const Text(
-                        'Зарегистрироваться',
+                        'Войти',
                         style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Пароль должен содержать минимум 8 символов, букву и цифру.',
-                style: TextStyle(color: Colors.white54, fontSize: 12),
-                textAlign: TextAlign.center,
+
+              const SizedBox(height: 14),
+
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const RegisterPage()),
+                  );
+                },
+                child: const Text(
+                  'Нет аккаунта? Регистрация',
+                  style: TextStyle(color: Colors.white70),
+                ),
               ),
             ],
           ),
